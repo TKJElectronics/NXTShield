@@ -2,7 +2,7 @@ The code is released under the GNU General Public License.
 
 Developed by Kristian Lauszus, TKJ Electronics March 2012
 
-This is the official library for the NXT Shield for Arduino. This enables one to control two motors and use one ultrasonic sensor easily
+This is the official library for the NXT Shield for Arduino. This enables one to control two NXT motors and use one NXT ultrasonic sensor easily
 
 The NXT Shield can be bought at our website: http://shop.tkjelectronics.dk/product_info.php?products_id=29
 

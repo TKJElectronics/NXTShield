@@ -1,0 +1,33 @@
+################################################
+# Syntax Coloring Map For NXT Shield Library
+################################################
+
+################################################
+# Datatypes (KEYWORD1)
+################################################
+
+UltrasonicSensor	KEYWORD1
+Motor1			KEYWORD1
+Motor2			KEYWORD1
+
+################################################
+# Methods and Functions (KEYWORD2)
+################################################
+
+readDistance		KEYWORD2
+readCommand		KEYWORD2
+setCommand		KEYWORD2
+move 			KEYWORD2
+stop			KEYWORD2
+coast			KEYWORD2
+readPosition		KEYWORD2
+resetPosition		KEYWORD2
+
+################################################
+# Constants and enums (LITERAL1)
+################################################
+
+backward		LITERAL1
+forward			LITERAL1
+brake			LITERAL1
+coast			LITERAL1

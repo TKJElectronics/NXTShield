@@ -1,0 +1,11 @@
+The code is released under the GNU General Public License.
+
+Developed by Kristian Lauszus, TKJ Electronics March 2012
+
+This is the official library for the NXT Shield for Arduino. This enables one to control two motors and use one ultrasonic sensor easily
+
+The NXT Shield can be bought at our website: http://shop.tkjelectronics.dk/product_info.php?products_id=29
+
+For more information see my blog post: http://blog.tkjelectronics.dk/2011/10/nxt-shield-ver2/ or send me an email at kristianl at tkjelectronics dot dk
+
+See "Appendix 7-LEGO MINDSTORMS NXT Ultrasonic Sensor I2C communication protocol.pdf" for all the available commands for the Ultrasonic sensor

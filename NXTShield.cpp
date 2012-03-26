@@ -111,7 +111,7 @@ void firstEncoder() {
     else
         _firstTachPos--;
     #else
-    if((bool)(PIND & _BV(PD2)) == (bool)(PINE & _BV(PD5))) // pin 2 == pin 5
+    if((PIND & B00100100) == 0 || (PIND & B00100100) == 36)//pin 2 == pin 5
         _firstTachPos++;
     else
         _firstTachPos--;
@@ -148,7 +148,7 @@ void secondEncoder() {
     else
         _secondTachPos--;
     #else
-    if((bool)(PIND & _BV(PD3)) == (bool)(PINE & _BV(PD6))) // pin 3 == pin 6
+    if((PIND & B01001000) == 0 || (PIND & B01001000) == 72)//pin 3 == pin 6
         _secondTachPos++;
     else
         _secondTachPos--;

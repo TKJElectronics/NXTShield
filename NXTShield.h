@@ -51,12 +51,12 @@
 
 //Enums for move functions
 enum Direction {
-    backward,
+    backward = 0,
     forward,
 };
 enum Brake {
     brake = 0,
-    coast = 1,
+    coast,
 };
 
 class UltrasonicSensor {

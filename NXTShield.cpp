@@ -13,7 +13,7 @@
  Kristian Lauszus, TKJ Electronics
  Web      :  http://www.tkjelectronics.com
  e-mail   :  kristianl@tkjelectronics.com
- */
+*/
 
 #include "NXTShield.h"
 
@@ -87,7 +87,7 @@ void UltrasonicSensor::clockPulse(void) {
  ' 5 Yellow SCL - also connect clockpin to give a extra low impuls
  ' 6 Blue SDA
  ' Do not use i2c pullup resistor - already provided within sensor.
-*/
+ */
 
 /* Interrupt code for the motors */
 volatile signed long _firstTachPos = 0;
@@ -106,12 +106,12 @@ long position2;
 // Read using the registers, as this is faster
 void firstEncoder() { 
     #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    if((bool)(PINE & _BV(PE4)) == (bool)(PINE & _BV(PE3))) // pin 2 == pin 5
+    if((bool)(PINE & _BV(4)) == (bool)(PINE & _BV(3))) // pin 2 == pin 5 - See http://arduino.cc/en/Hacking/PinMapping2560
         _firstTachPos++;
     else
         _firstTachPos--;
     #else
-    if((PIND & B00100100) == 0 || (PIND & B00100100) == 36)//pin 2 == pin 5
+    if((bool)(PIND & _BV(2)) == (bool)(PIND & _BV(5))) // pin 2 == pin 5 - See http://arduino.cc/en/Hacking/PinMapping168
         _firstTachPos++;
     else
         _firstTachPos--;
@@ -143,12 +143,12 @@ void firstEncoder() {
 }
 void secondEncoder() { 
     #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    if((bool)(PINE & _BV(PE5)) == (bool)(PINH & _BV(PH3))) // pin 3 == pin 6
+    if((bool)(PINE & _BV(5)) == (bool)(PINH & _BV(3))) // pin 3 == pin 6 - See http://arduino.cc/en/Hacking/PinMapping2560
         _secondTachPos++;
     else
         _secondTachPos--;
     #else
-    if((PIND & B01001000) == 0 || (PIND & B01001000) == 72)//pin 3 == pin 6
+    if((bool)(PIND & _BV(3)) == (bool)(PIND & _BV(6))) // pin 3 == pin 6 - See http://arduino.cc/en/Hacking/PinMapping168
         _secondTachPos++;
     else
         _secondTachPos--;
@@ -208,7 +208,7 @@ void Motor1::move(Direction direction, uint8_t torque, int rotation, Brake halt)
         brake1 = true;
     else if(halt == 1)
         brake1 = false;
-        
+    
     analogWrite(firstPWM, torque);    
     if(direction == forward) {
         forward1 = true;
@@ -266,7 +266,7 @@ void Motor2::move(Direction direction, uint8_t torque, int rotation, Brake halt)
         brake2 = true;
     else if(halt == 1)
         brake2 = false;
-        
+    
     analogWrite(secondPWM, torque);
     if(direction == forward) {
         forward2 = true;

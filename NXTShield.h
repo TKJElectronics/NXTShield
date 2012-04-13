@@ -59,7 +59,7 @@ enum Brake {
     coast,
 };
 
-class UltrasonicSensor {
+class UltrasonicSensor { // To use the ultrasonic sensor with an Arduino Mega, one have to connect pin 20 (SDA) to A4 and pin 21 (SCL) to A5
 public:
     UltrasonicSensor();
     int readDistance(void);
@@ -78,6 +78,7 @@ public:
     void coast(void);
     int readPosition(void);
     void resetPosition(void);
+    bool isTurning(void);    
 };
 class Motor2 {    
 public:
@@ -87,7 +88,8 @@ public:
     void stop(void);    
     void coast(void);
     int readPosition(void);
-    void resetPosition(void);    
+    void resetPosition(void);
+    bool isTurning(void);    
 };
 
 #endif

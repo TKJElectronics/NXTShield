@@ -31,11 +31,15 @@ void loop(){
     Serial.println("Coast");
     leftMotor.move(forward, 255, 360, coast);
     rightMotor.move(forward, 255, 360, coast);
-    delay(2000);  
+    while(leftMotor.isTurning()); // Wait until it has reach the position
+    while(rightMotor.isTurning());
+    delay(500);
     
     // Rotate 360 degrees (one resolution) and brake motors
     Serial.println("Brake");
     leftMotor.move(backward, 255, 360, brake);
     rightMotor.move(backward, 255, 360, brake);
-    delay(2000);
+    while(leftMotor.isTurning()); // Wait until it has reach the position
+    while(rightMotor.isTurning());
+    delay(500);
 }

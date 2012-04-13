@@ -13,7 +13,7 @@
  Kristian Lauszus, TKJ Electronics
  Web      :  http://www.tkjelectronics.com
  e-mail   :  kristianl@tkjelectronics.com
-*/
+ */
 
 #include "NXTShield.h"
 
@@ -48,7 +48,7 @@ int* UltrasonicSensor::readCommand(int address, int length) {
     
     Wire.requestFrom(sensorAddress,9); // Send repeated start, request 9 and send stop command
     int buffer[9];
-    for(uint8_t i = 0; i <= 9; i++) // This small hack is needed for it to work properly
+    for(uint8_t i = 0; i < 9; i++) // This small hack is needed for it to work properly
         buffer[i] = Wire.read();
     Wire.endTransmission();
     
@@ -93,11 +93,13 @@ void UltrasonicSensor::clockPulse(void) {
 volatile signed long _firstTachPos = 0;
 volatile signed long _secondTachPos = 0;
 
+bool _isTurning1;
 bool block1;
 bool forward1;
 bool brake1;
 long position1;
 
+bool _isTurning2;
 bool block2;
 bool forward2;
 bool brake2;
@@ -119,7 +121,8 @@ void firstEncoder() {
     
     if (block1) { // This will ensure that both motors can move at the same time
         if(forward1) {
-            if(_firstTachPos > position1) {
+            if(_firstTachPos >= position1) {
+                _isTurning1 = false;
                 if(brake1) {
                     digitalWrite(firstPWM, HIGH);
                     digitalWrite(logicFirst1, HIGH);
@@ -129,7 +132,8 @@ void firstEncoder() {
                     digitalWrite(firstPWM, LOW);
             }                
         } else {
-            if(_firstTachPos < position1) {
+            if(_firstTachPos <= position1) {
+                _isTurning1 = false;
                 if(brake1) {
                     digitalWrite(firstPWM, HIGH);
                     digitalWrite(logicFirst1, HIGH);
@@ -156,7 +160,8 @@ void secondEncoder() {
     
     if (block2) { // This will ensure that both motors can move at the same time
         if(forward2) {
-            if(_secondTachPos > position2) {
+            if(_secondTachPos >= position2) {
+                _isTurning2 = false;                
                 if(brake2) {
                     digitalWrite(secondPWM, HIGH);
                     digitalWrite(logicSecond1, HIGH);
@@ -166,7 +171,8 @@ void secondEncoder() {
                     digitalWrite(secondPWM, LOW);
             }                
         } else {
-            if(_secondTachPos < position2) {
+            if(_secondTachPos <= position2) {
+                _isTurning2 = false;
                 if(brake2) {
                     digitalWrite(secondPWM, HIGH);
                     digitalWrite(logicSecond1, HIGH);
@@ -191,6 +197,7 @@ Motor1::Motor1() {
     attachInterrupt(0, firstEncoder, CHANGE); // pin 2    
 }
 void Motor1::move(Direction direction, uint8_t torque) {
+    _isTurning1 = true;    
     block1 = false;
     
     analogWrite(firstPWM, torque);    
@@ -203,6 +210,7 @@ void Motor1::move(Direction direction, uint8_t torque) {
     }
 }
 void Motor1::move(Direction direction, uint8_t torque, int rotation, Brake halt) {
+    _isTurning1 = true;    
     block1 = true;
     if(halt == 0)
         brake1 = true;
@@ -223,11 +231,13 @@ void Motor1::move(Direction direction, uint8_t torque, int rotation, Brake halt)
     }     
 }
 void Motor1::stop(void) {
+    _isTurning1 = false;    
     digitalWrite(firstPWM, HIGH);
     digitalWrite(logicFirst1, HIGH);
     digitalWrite(logicFirst2, HIGH);
 }
 void Motor1::coast(void) {
+    _isTurning1 = false;    
     digitalWrite(firstPWM, LOW);
 }
 int Motor1::readPosition(void) {
@@ -235,6 +245,9 @@ int Motor1::readPosition(void) {
 }
 void Motor1::resetPosition(void) {
     _firstTachPos = 0;
+}
+bool Motor1::isTurning(void) {
+    return _isTurning1;
 }
 
 /* Second Motor */
@@ -249,6 +262,7 @@ Motor2::Motor2() {
     attachInterrupt(1, secondEncoder, CHANGE); // pin 3
 }
 void Motor2::move(Direction direction, uint8_t torque) {
+    _isTurning2 = true;        
     block2 = false;    
     
     analogWrite(secondPWM, torque);    
@@ -261,6 +275,7 @@ void Motor2::move(Direction direction, uint8_t torque) {
     }
 }
 void Motor2::move(Direction direction, uint8_t torque, int rotation, Brake halt) {
+    _isTurning2 = true;
     block2 = true;
     if(halt == 0)
         brake2 = true;
@@ -281,11 +296,13 @@ void Motor2::move(Direction direction, uint8_t torque, int rotation, Brake halt)
     }    
 }
 void Motor2::stop(void) {
+    _isTurning2 = false;
     digitalWrite(secondPWM, HIGH);
     digitalWrite(logicSecond1, HIGH);
     digitalWrite(logicSecond2, HIGH);
 }
 void Motor2::coast(void) {
+    _isTurning2 = false;
     digitalWrite(secondPWM, LOW);
 }
 int Motor2::readPosition(void) {
@@ -293,4 +310,7 @@ int Motor2::readPosition(void) {
 }
 void Motor2::resetPosition(void) {
     _secondTachPos = 0;   
+}
+bool Motor2::isTurning(void) {
+    return _isTurning2;
 }

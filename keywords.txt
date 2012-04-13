@@ -22,6 +22,7 @@ stop			KEYWORD2
 coast			KEYWORD2
 readPosition		KEYWORD2
 resetPosition		KEYWORD2
+isTurning		KEYWORD2
 
 ################################################
 # Constants and enums (LITERAL1)

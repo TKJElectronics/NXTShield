@@ -76,7 +76,7 @@ public:
     void move(Direction direction, uint8_t torque, int rotation, Brake brake);
     void stop(void);    
     void coast(void);
-    int readPosition(void);
+    long readPosition(void);
     void resetPosition(void);
     bool isTurning(void);    
 };
@@ -87,7 +87,7 @@ public:
     void move(Direction direction, uint8_t torque, int rotation, Brake brake);
     void stop(void);    
     void coast(void);
-    int readPosition(void);
+    long readPosition(void);
     void resetPosition(void);
     bool isTurning(void);    
 };

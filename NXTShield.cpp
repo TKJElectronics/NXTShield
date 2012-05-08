@@ -240,7 +240,7 @@ void Motor1::coast(void) {
     _isTurning1 = false;    
     digitalWrite(firstPWM, LOW);
 }
-int Motor1::readPosition(void) {
+long Motor1::readPosition(void) {
     return _firstTachPos;        
 }
 void Motor1::resetPosition(void) {
@@ -305,7 +305,7 @@ void Motor2::coast(void) {
     _isTurning2 = false;
     digitalWrite(secondPWM, LOW);
 }
-int Motor2::readPosition(void) {
+long Motor2::readPosition(void) {
     return _secondTachPos;        
 }
 void Motor2::resetPosition(void) {

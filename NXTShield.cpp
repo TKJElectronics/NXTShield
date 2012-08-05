@@ -192,7 +192,7 @@ Motor1::Motor1() {
     
     pinMode(firstPWM, OUTPUT);
     pinMode(logicFirst1, OUTPUT);
-    pinMode(logicFirst1, OUTPUT);
+    pinMode(logicFirst2, OUTPUT);
     
     attachInterrupt(0, firstEncoder, CHANGE); // pin 2    
 }

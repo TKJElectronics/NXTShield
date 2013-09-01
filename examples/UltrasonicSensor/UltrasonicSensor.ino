@@ -1,18 +1,24 @@
 #include <Wire.h>
 #include <NXTShield.h>
 
-UltrasonicSensor sensor;
 int readProductID = 0x08;
 
 void setup() {
   Serial.begin(115200);
 
-  int* data = sensor.readCommand(readProductID, 4);
-  for(int i = 0; i < 4 ; i++) // This should print "LEGO"
-    Serial.write(data[i]);
-  Serial.println("");
+  uint8_t data[4];
+  uint8_t rcode = UltrasonicSensor.readCommand(readProductID, data, 4);
+  if (!rcode) { // Check error code
+    Serial.write(data, 4); // This should print "LEGO"
+    Serial.println();
+  } else
+    Serial.println("Error reading sensor");
 }
 
 void loop() {
-    Serial.println(sensor.readDistance());
+  int distance = UltrasonicSensor.readDistance();
+  if (distance != -1)
+    Serial.println(distance);
+  else
+    Serial.println("Error reading sensor");
 }

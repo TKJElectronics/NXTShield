@@ -1,15 +1,15 @@
 /* Copyright (C) 2012 Kristian Lauszus, TKJ Electronics. All rights reserved.
- 
+
  This software may be distributed and modified under the terms of the GNU
  General Public License version 2 (GPL2) as published by the Free Software
  Foundation and appearing in the file GPL2.TXT included in the packaging of
  this file. Please note that GPL2 Section 2[b] requires that all works based
  on this software must also be made publicly available under the terms of
  the GPL2 ("Copyleft").
- 
+
  Contact information
  -------------------
- 
+
  Kristian Lauszus, TKJ Electronics
  Web      :  http://www.tkjelectronics.com
  e-mail   :  kristianl@tkjelectronics.com
@@ -17,300 +17,241 @@
 
 #include "NXTShield.h"
 
+const uint8_t Sensor::clockPin = 4;
+
 /* Ultrasonic Sensor */
-UltrasonicSensor::UltrasonicSensor() {    
+Sensor::Sensor() {
+    const double SCL_Frequency = 11494.252873563; // The same I2C frequency as the NXT
+    const uint8_t prescaler = 4;
+
     Wire.begin();
-    
-    /* Set I2C frequency to 11494,253Hz - the same as the NXT */    
-    TWSR |= _BV(TWPS0); // Set prescaler to 4  
+
+    /* Set I2C frequency to 11494,253Hz - the same as the NXT */
+    TWSR |= _BV(TWPS0); // Set prescaler to 4
     TWSR &= ~(_BV(TWPS1));
-    
-    // SCL Frequency = F_CPU/(16+2*TWBR*Prescaler) - see p. 223 in atmega328's datasheet
-    TWBR = ((F_CPU/SCL_Frequency)-16)/prescaler/2; // Bit Rate Register = 172 for 16MHz and 85 for 8MHz  
-    pinMode(clockPin, INPUT); // Needed for receiving to work
-    digitalWrite(clockPin, HIGH);    
-    _timer = millis();
+
+    // SCL Frequency = F_CPU/(16+2*TWBR*Prescaler) - see p. 223 in ATmega328P's datasheet
+    TWBR = ((F_CPU/SCL_Frequency)-16)/prescaler/2; // Bit Rate Register = 172 for 16MHz and 85 for 8MHz
+    pinMode(clockPin, INPUT_PULLUP); // Needed for receiving to work
+    timer = millis();
 }
-int UltrasonicSensor::readDistance(void) {
-    int* data = readCommand(readMeasurement,1);
-    return data[0];
+int16_t Sensor::readDistance(void) {
+    uint8_t data;
+    if (readCommand(readMeasurement, &data, 1))
+        return -1;
+    return data;
 }
-int* UltrasonicSensor::readCommand(int address, int length) {
-    if((millis() - _timer) < 25) // There has to be approx. 25 ms between commands
-        delay(25 - (millis() - _timer));
-    _timer = millis();
-    
-    Wire.beginTransmission(sensorAddress); // transmit to device
+uint8_t Sensor::readCommand(uint8_t address, uint8_t *data, uint8_t length) {
+    const uint16_t I2C_TIMEOUT = 10; // Used to check for errors in I2C communication
+    uint32_t timeOutTimer;
+    uint8_t buffer[max(9, length)]; // We need to request at least 9 in order for it to work
+
+    if ((millis() - timer) < 25) // There has to be approx. 25 ms between commands
+        delay(25 - (millis() - timer));
+    timer = millis();
+
+    Wire.beginTransmission(sensorAddress); // Transmit to device
     Wire.write(address);
-    Wire.endTransmission();
-    
+    uint8_t rcode = Wire.endTransmission(); // Don't release the bus
+    if (rcode) // Check error code
+        return rcode; // See: http://arduino.cc/en/Reference/WireEndTransmission
+
     clockPulse(); // Needed for receiving to work
-    
-    Wire.requestFrom(sensorAddress,9); // Send repeated start, request 9 and send stop command
-    int buffer[9];
-    for(uint8_t i = 0; i < 9; i++) // This small hack is needed for it to work properly
-        buffer[i] = Wire.read();
-    Wire.endTransmission();
-    
-    int newBuf[length];
-    for(uint8_t i = 0; i < length; i++)
-        newBuf[i] = buffer[i];
-    
-    return newBuf;
+
+    Wire.requestFrom((uint8_t)sensorAddress, sizeof(buffer)); // Send repeated start, request 9 and send stop command
+
+    for (uint8_t i = 0; i < sizeof(buffer); i++) {
+        if (Wire.available())
+            buffer[i] = Wire.read();
+        else {
+            timeOutTimer = millis();
+            while (((millis() - timeOutTimer) < I2C_TIMEOUT) && !Wire.available());
+            if (Wire.available())
+                buffer[i] = Wire.read();
+            else
+                return 5; // This error value is not already taken by endTransmission
+        }
+    }
+    for (uint8_t i = 0; i < length; i++)
+        data[i] = buffer[i];
+    return 0;
 }
-void UltrasonicSensor::setCommand(int address,int command) {
-    if((millis() - _timer) < 25) // There has to be approx. 25 ms between commands
-        delay(25 - (millis() - _timer));
-    _timer = millis();
-    
-    Wire.beginTransmission(sensorAddress); // transmit to device
+uint8_t Sensor::setCommand(uint8_t address, uint8_t command) {
+    if ((millis() - timer) < 25) // There has to be approx. 25 ms between commands
+        delay(25 - (millis() - timer));
+    timer = millis();
+
+    Wire.beginTransmission(sensorAddress); // Transmit to device
     Wire.write(address);
     Wire.write(command);
-    Wire.endTransmission();    
+    return Wire.endTransmission(); // See: http://arduino.cc/en/Reference/WireEndTransmission
 }
-void UltrasonicSensor::clockPulse(void) {
+void Sensor::clockPulse(void) {
     delayMicroseconds(60);
     pinMode(clockPin, OUTPUT);
-    digitalWrite(clockPin, LOW); 
+    digitalWrite(clockPin, LOW);
     delayMicroseconds(34);
-    pinMode(clockPin, INPUT);
-    digitalWrite(clockPin, HIGH); 
-    delayMicroseconds(60);    
+    pinMode(clockPin, INPUT_PULLUP);
+    delayMicroseconds(60);
 }
 /*
  ' Wires on NXT jack plug.
- ' Wire colours may vary. Pin 1 is always nearest latch.
+ ' Wire colors may vary. Pin 1 is always nearest latch.
  ' 1 White +9V
  ' 2 Black GND
  ' 3 Red GND
  ' 4 Green +5V
- ' 5 Yellow SCL - also connect clockpin to give a extra low impuls
+ ' 5 Yellow SCL - also connect clockpin to give a extra low impulse
  ' 6 Blue SDA
- ' Do not use i2c pullup resistor - already provided within sensor.
+ ' Do not use I2C pullup resistor - already provided within sensor.
  */
 
-/* Interrupt code for the motors */
-volatile signed long _firstTachPos = 0;
-volatile signed long _secondTachPos = 0;
+/* Variables used by the interrupt routine for the encoders */
+volatile int32_t firstTachPos, secondTachPos;
 
-bool _isTurning1;
-bool block1;
-bool forward1;
-bool brake1;
-long position1;
+// The interrupt routines handles the encoder reading
+void firstEncoder() {
+    if (Motor1.readEncodersEqual()) // pin 2 == pin 5 - See http://www.arduino.cc/en/Reference/PortManipulation
+        firstTachPos++;
+    else
+        firstTachPos--;
 
-bool _isTurning2;
-bool block2;
-bool forward2;
-bool brake2;
-long position2;
-
-// Read using the registers, as this is faster
-void firstEncoder() { 
-    #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    if((bool)(PINE & _BV(4)) == (bool)(PINE & _BV(3))) // pin 2 == pin 5 - See http://arduino.cc/en/Hacking/PinMapping2560
-        _firstTachPos++;
-    else
-        _firstTachPos--;
-    #else
-    if((bool)(PIND & _BV(2)) == (bool)(PIND & _BV(5))) // pin 2 == pin 5 - See http://arduino.cc/en/Hacking/PinMapping168
-        _firstTachPos++;
-    else
-        _firstTachPos--;
-    #endif
-    
-    if (block1) { // This will ensure that both motors can move at the same time
-        if(forward1) {
-            if(_firstTachPos >= position1) {
-                _isTurning1 = false;
-                if(brake1) {
-                    digitalWrite(firstPWM, HIGH);
-                    digitalWrite(logicFirst1, HIGH);
-                    digitalWrite(logicFirst2, HIGH);
-                }                
-                else
-                    digitalWrite(firstPWM, LOW);
-            }                
-        } else {
-            if(_firstTachPos <= position1) {
-                _isTurning1 = false;
-                if(brake1) {
-                    digitalWrite(firstPWM, HIGH);
-                    digitalWrite(logicFirst1, HIGH);
-                    digitalWrite(logicFirst2, HIGH);
-                }                
-                else
-                    digitalWrite(firstPWM, LOW);
-            } 
-        }
-    }
-}
-void secondEncoder() { 
-    #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-    if((bool)(PINE & _BV(5)) == (bool)(PINH & _BV(3))) // pin 3 == pin 6 - See http://arduino.cc/en/Hacking/PinMapping2560
-        _secondTachPos++;
-    else
-        _secondTachPos--;
-    #else
-    if((bool)(PIND & _BV(3)) == (bool)(PIND & _BV(6))) // pin 3 == pin 6 - See http://arduino.cc/en/Hacking/PinMapping168
-        _secondTachPos++;
-    else
-        _secondTachPos--;
-    #endif
-    
-    if (block2) { // This will ensure that both motors can move at the same time
-        if(forward2) {
-            if(_secondTachPos >= position2) {
-                _isTurning2 = false;                
-                if(brake2) {
-                    digitalWrite(secondPWM, HIGH);
-                    digitalWrite(logicSecond1, HIGH);
-                    digitalWrite(logicSecond2, HIGH);
-                }                
-                else
-                    digitalWrite(secondPWM, LOW);
-            }                
-        } else {
-            if(_secondTachPos <= position2) {
-                _isTurning2 = false;
-                if(brake2) {
-                    digitalWrite(secondPWM, HIGH);
-                    digitalWrite(logicSecond1, HIGH);
-                    digitalWrite(logicSecond2, HIGH);
-                }                
-                else
-                    digitalWrite(secondPWM, LOW);
-            } 
+    if (Motor1.block && Motor1.isTurning()) { // Check if the encoders should stop the motor
+        if ((Motor1.forward && firstTachPos <= Motor1.position) || (!Motor1.forward && firstTachPos >= Motor1.position)) {
+            if (Motor1.brake)
+                Motor1.stop();
+            else
+                Motor1.coast();
         }
     }
 }
 
-/* First Motor */
-Motor1::Motor1() {
-    pinMode(tachFirst1, INPUT);
-    pinMode(tachFirst2, INPUT);
-    
-    pinMode(firstPWM, OUTPUT);
-    pinMode(logicFirst1, OUTPUT);
-    pinMode(logicFirst2, OUTPUT);
-    
-    attachInterrupt(0, firstEncoder, CHANGE); // pin 2    
-}
-void Motor1::move(Direction direction, uint8_t torque) {
-    _isTurning1 = true;    
-    block1 = false;
-    
-    analogWrite(firstPWM, torque);    
-    if(direction == forward) {
-        digitalWrite(logicFirst1, LOW);
-        digitalWrite(logicFirst2, HIGH);
-    } else if(direction == backward) {
-        digitalWrite(logicFirst1, HIGH);
-        digitalWrite(logicFirst2, LOW);
+void secondEncoder() {
+    if (Motor2.readEncodersEqual()) // pin 3 == pin 6 - See http://www.arduino.cc/en/Reference/PortManipulation
+        secondTachPos++;
+    else
+        secondTachPos--;
+
+    if (Motor2.block && Motor2.isTurning()) { // Check if the encoders should stop the motor
+        if ((Motor2.forward && secondTachPos <= Motor2.position) || (!Motor2.forward && secondTachPos >= Motor2.position)) {
+            if (Motor2.brake)
+                Motor2.stop();
+            else
+                Motor2.coast();
+        }
     }
-}
-void Motor1::move(Direction direction, uint8_t torque, int rotation, Brake halt) {
-    _isTurning1 = true;    
-    block1 = true;
-    if(halt == 0)
-        brake1 = true;
-    else if(halt == 1)
-        brake1 = false;
-    
-    analogWrite(firstPWM, torque);    
-    if(direction == forward) {
-        forward1 = true;
-        position1 = _firstTachPos+rotation;  
-        digitalWrite(logicFirst1, LOW);
-        digitalWrite(logicFirst2, HIGH);
-    } else if(direction == backward) { 
-        forward1 = false;        
-        position1 = _firstTachPos-rotation;
-        digitalWrite(logicFirst1, HIGH);
-        digitalWrite(logicFirst2, LOW);   
-    }     
-}
-void Motor1::stop(void) {
-    _isTurning1 = false;    
-    digitalWrite(firstPWM, HIGH);
-    digitalWrite(logicFirst1, HIGH);
-    digitalWrite(logicFirst2, HIGH);
-}
-void Motor1::coast(void) {
-    _isTurning1 = false;    
-    digitalWrite(firstPWM, LOW);
-}
-long Motor1::readPosition(void) {
-    return _firstTachPos;        
-}
-void Motor1::resetPosition(void) {
-    _firstTachPos = 0;
-}
-bool Motor1::isTurning(void) {
-    return _isTurning1;
 }
 
-/* Second Motor */
-Motor2::Motor2() {
-    pinMode(tachSecond1, INPUT);
-    pinMode(tachSecond2, INPUT);
-    
-    pinMode(secondPWM, OUTPUT);
-    pinMode(logicSecond1, OUTPUT);
-    pinMode(logicSecond2, OUTPUT);
-    
-    attachInterrupt(1, secondEncoder, CHANGE); // pin 3
-}
-void Motor2::move(Direction direction, uint8_t torque) {
-    _isTurning2 = true;        
-    block2 = false;    
-    
-    analogWrite(secondPWM, torque);    
-    if(direction == forward) {
-        digitalWrite(logicSecond1, LOW);
-        digitalWrite(logicSecond2, HIGH);
-    } else if(direction == backward) {
-        digitalWrite(logicSecond1, HIGH);
-        digitalWrite(logicSecond2, LOW);
+/* Motor class */
+Motor::Motor(uint8_t tach1, uint8_t tach2, uint8_t pwm, uint8_t logic1, uint8_t logic2) {
+    tach1Pin = tach1;
+    pinMode(tach1Pin, INPUT);
+    pinMode(tach2, INPUT);
+
+    pwmPin = pwm;
+    pinMode(pwmPin, OUTPUT);
+    pinMode(logic1, OUTPUT);
+    pinMode(logic2, OUTPUT);
+
+    /* Read the port register and bit mask for the different pins */
+    tach1BitMask = digitalPinToBitMask(tach1Pin);
+    tach1InputPort = portInputRegister(digitalPinToPort(tach1Pin));
+
+    tach2BitMask = digitalPinToBitMask(tach2);
+    tach2InputPort = portInputRegister(digitalPinToPort(tach2));
+
+    logic1BitMask = digitalPinToBitMask(logic1);
+    logic1OutPort = portOutputRegister(digitalPinToPort(logic1));
+
+    logic2BitMask = digitalPinToBitMask(logic2);
+    logic2OutPort = portOutputRegister(digitalPinToPort(logic2));
+
+    if (tach1Pin == 2) { // Pin 2
+#ifdef __AVR_ATmega32U4__ // Arduino Leonardo
+        attachInterrupt(1, firstEncoder, CHANGE); // pin 2
+#else
+        attachInterrupt(0, firstEncoder, CHANGE); // pin 2
+#endif
+    } else if (tach1Pin == 3) { // Pin 3
+#ifdef __AVR_ATmega32U4__ // Arduino Leonardo
+        attachInterrupt(0, secondEncoder, CHANGE); // pin 3
+#else
+        attachInterrupt(1, secondEncoder, CHANGE); // pin 3
+#endif
     }
 }
-void Motor2::move(Direction direction, uint8_t torque, int rotation, Brake halt) {
-    _isTurning2 = true;
-    block2 = true;
-    if(halt == 0)
-        brake2 = true;
-    else if(halt == 1)
-        brake2 = false;
-    
-    analogWrite(secondPWM, torque);
-    if(direction == forward) {
-        forward2 = true;
-        position2 = _secondTachPos+rotation;  
-        digitalWrite(logicSecond1, LOW);
-        digitalWrite(logicSecond2, HIGH);
-    } else if(direction == backward) {  
-        forward2 = false;
-        position2 = _secondTachPos-rotation;
-        digitalWrite(logicSecond1, HIGH);
-        digitalWrite(logicSecond2, LOW);    
-    }    
+
+void Motor::move(uint8_t direction, uint8_t speed) {
+    turning = true;
+    block = false;
+
+    analogWrite(pwmPin, speed);
+
+    if (direction == FORWARD) {
+        *logic1OutPort |= logic1BitMask;
+        *logic2OutPort &= ~logic2BitMask;
+    } else if (direction == BACKWARD) {
+        *logic1OutPort &= ~logic1BitMask;
+        *logic2OutPort |= logic2BitMask;
+    }
 }
-void Motor2::stop(void) {
-    _isTurning2 = false;
-    digitalWrite(secondPWM, HIGH);
-    digitalWrite(logicSecond1, HIGH);
-    digitalWrite(logicSecond2, HIGH);
+void Motor::move(uint8_t direction, uint8_t speed, uint32_t rotation, uint8_t halt) {
+    turning = true;
+    block = true;
+    if (halt == BRAKE)
+        brake = true;
+    else if (halt == COAST)
+        brake = false;
+
+    analogWrite(pwmPin, speed);
+
+    int32_t tachPos;
+    if (tach1Pin == 2)
+        tachPos = firstTachPos;
+    else
+        tachPos = secondTachPos;
+
+    if (direction == FORWARD) {
+        forward = true;
+        position = tachPos-rotation;
+        *logic1OutPort |= logic1BitMask;
+        *logic2OutPort &= ~logic2BitMask;
+    } else if (direction == BACKWARD) {
+        forward = false;
+        position = tachPos+rotation;
+        *logic1OutPort &= ~logic1BitMask;
+        *logic2OutPort |= logic2BitMask;
+    }
 }
-void Motor2::coast(void) {
-    _isTurning2 = false;
-    digitalWrite(secondPWM, LOW);
+void Motor::stop(void) {
+    turning = false;
+    analogWrite(pwmPin, 255);
+    *logic1OutPort |= logic1BitMask;
+    *logic2OutPort |= logic2BitMask;
 }
-long Motor2::readPosition(void) {
-    return _secondTachPos;        
+void Motor::coast(void) {
+    turning = false;
+    analogWrite(pwmPin, 0);
 }
-void Motor2::resetPosition(void) {
-    _secondTachPos = 0;   
+int32_t Motor::readPosition(void) {
+    if (tach1Pin == 2)
+        return firstTachPos;
+    return secondTachPos;
 }
-bool Motor2::isTurning(void) {
-    return _isTurning2;
+void Motor::resetPosition(void) {
+    if (tach1Pin == 2)
+        firstTachPos = 0;
+    else
+        secondTachPos = 0;
 }
+bool Motor::isTurning(void) {
+    return turning;
+}
+bool Motor::readEncodersEqual(void) {
+    return ((bool)(*tach1InputPort & tach1BitMask) == (bool)(*tach2InputPort & tach2BitMask));
+}
+
+Motor Motor1(2, 5, 9, 7, 11); // Create the first motor instance
+Motor Motor2(3, 6, 10, 12, 8); // Create the second motor instance
+
+Sensor UltrasonicSensor; // Create the Ultrasonic Sensor instance

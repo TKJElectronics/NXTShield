@@ -167,13 +167,17 @@ Motor::Motor(uint8_t tach1, uint8_t tach2, uint8_t pwm, uint8_t logic1, uint8_t 
     logic2OutPort = portOutputRegister(digitalPinToPort(logic2));
 
     if (tach1Pin == 2) { // Pin 2
-#ifdef __AVR_ATmega32U4__ // Arduino Leonardo
+#ifdef digitalPinToInterrupt // Use macro defined in pins_arduino.h
+        attachInterrupt(digitalPinToInterrupt(tach1Pin), firstEncoder, CHANGE); // Pin 2
+#elif defined(__AVR_ATmega32U4__) // Arduino Leonardo
         attachInterrupt(1, firstEncoder, CHANGE); // pin 2
 #else
         attachInterrupt(0, firstEncoder, CHANGE); // pin 2
 #endif
     } else if (tach1Pin == 3) { // Pin 3
-#ifdef __AVR_ATmega32U4__ // Arduino Leonardo
+#ifdef digitalPinToInterrupt // Use macro defined in pins_arduino.h
+        attachInterrupt(digitalPinToInterrupt(tach1Pin), secondEncoder, CHANGE); // pin 3
+#elif defined(__AVR_ATmega32U4__) // Arduino Leonardo
         attachInterrupt(0, secondEncoder, CHANGE); // pin 3
 #else
         attachInterrupt(1, secondEncoder, CHANGE); // pin 3
